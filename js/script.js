@@ -264,6 +264,12 @@ async function setBackdrop(type, path) {
     }
 }
 
+async function fetchSearchResults() {
+    const res = await fetch(`https://api.themoviedb.org/3/search/${global.search.type}?query=${global.search.term}&page=${global.search.page}`, options)
+    const { results , page, total_pages} = await res.json()
+    return {results, page, total_pages}
+}
+
 //search function 
 async function search() {
     const searchQuery = window.location.search
@@ -272,84 +278,83 @@ async function search() {
     global.search.term = urlName.get('search-term')
     global.search.type = urlName.get('type')
 
-    console.log(global.search.type);
-
     if (global.search.term != '' && global.search.term != null) {
-        const res = await fetch(`https://api.themoviedb.org/3/search/${global.search.type}?query=${global.search.term}`, options)
-        const { results } = await res.json() 
-        console.log(results);
-        if (global.search.type == 'movie') {
-            results.forEach(movie => {
-                const div = document.createElement('div')
-                div.classList.add('card')
-                div.innerHTML = 
-                    `
-                        <a href="/movie-details.html?id=${movie.id}">
-                        ${
-                            movie.poster_path 
-                            ? 
-                            `<img
-                        src="https://image.tmdb.org/t/p/w500${movie.poster_path}"
-                        alt="${movie.title}"
-                        class="card-img-top"
-                        />`
-                            :
-                            `
-                            <img
-                        src="images/no-image.jpg"
-                        alt="${movie.title}"
-                        class="card-img-top"
-                        />
-                            `
-                        }
-                        </a>
-                        <div class="card-body">
-                        <h5 class="card-title">${movie.title}</h5>
-                        <p class="card-text">
-                            <small class="text-muted">Release: ${movie.release_date}</small>
-                        </p>
-                        </div>
-                    `
-                document.querySelector('#search-results').appendChild(div)
-            })
-        } else {
-            results.forEach(tv => {
-                const div = document.createElement('div')
-                div.classList.add('card')
-                div.innerHTML = 
-                    `
-                        <a href="/tv-details.html?id=${tv.id}">
-                        ${
-                            tv.poster_path 
-                            ? 
-                            `<img
-                        src="https://image.tmdb.org/t/p/w500${tv.poster_path}"
-                        alt="${tv.name}"
-                        class="card-img-top"
-                        />`
-                            :
-                            `
-                            <img
-                        src="images/no-image.jpg"
-                        alt="${tv.name}"
-                        class="card-img-top"
-                        />
-                            `
-                        }
-                        </a>
-                        <div class="card-body">
-                        <h5 class="card-title">${tv.name}</h5>
-                        <p class="card-text">
-                            <small class="text-muted">Release: ${tv.release_date}</small>
-                        </p>
-                        </div>
-                    `
-                document.querySelector('#search-results').appendChild(div)
-            })
-        }
+        displaySearchResults(global.search.term, global.search.type)
     } else{
         showAlert('Please enter a search term')
     }
+}
+
+//function to display search results 
+async function displaySearchResults() {
+    const { results }= await fetchSearchResults(global.search.term, global.search.type, global.search.page)  
+    const { page }= await fetchSearchResults(global.search.term, global.search.type, global.search.page)  
+    const { total_pages }= await fetchSearchResults(global.search.term, global.search.type, global.search.page)  
+    global.search.page = page
+    global.search.totalPages = total_pages
+    console.log(page, total_pages);
+    results.forEach(results => {
+        const div = document.createElement('div')
+        div.classList.add('card');
+        div.innerHTML = 
+            `
+                <a href="${results.id}">
+                ${
+                    results.poster_path 
+                    ? 
+                    `<img
+                src="https://image.tmdb.org/t/p/w500${results.poster_path}"
+                alt="${global.search.type == 'movie' ? results.title : results.name}"
+                class="card-img-top"
+                />`
+                    :
+                    `
+                    <img
+                src="images/no-image.jpg"
+                alt="${global.search.type == 'movie' ? results.title : results.name}"
+                class="card-img-top"
+                />
+                    `
+                }
+                </a>
+                <div class="card-body">
+                <h5 class="card-title">${global.search.type == 'movie' ? results.title : results.name}</h5>
+                <p class="card-text">
+                    <small class="text-muted">${results.release_date}</small>
+                </p>
+                </div>
+            `
+    document.querySelector('#search-results').appendChild(div)
+    document.querySelector('.page-counter').innerHTML = `Page ${global.search.page} of ${global.search.totalPages} Pages`
+        })
+    
+    if(global.search.page === 1) {
+        document.querySelector('#prev').disabled = true
+    }else{
+        document.querySelector('#prev').disabled = false
+    }
+    if (global.search.page == global.search.totalPages) {
+        document.querySelector('#next').disabled = true
+    }else {
+        document.querySelector('#next').disabled = false
+    }
+    document.querySelector('#next').addEventListener('click', nextPage)
+    document.querySelector('#prev').addEventListener('click', prevPage)
+    
+}
+
+function prevPage() {
+    global.search.page--
+    document.querySelector('#search-results').innerHTML = ''
+    fetchSearchResults()
+    displaySearchResults()
+}
+
+function nextPage() {
+    global.search.page++
+    document.querySelector('#search-results').innerHTML = ''
+    fetchSearchResults()
+    displaySearchResults()
 }
 
 // show alert function
